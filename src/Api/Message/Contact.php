@@ -111,7 +111,7 @@ class Contact extends Message
     public function setConcat($contact)
     {
         $this->phone_number = $contact['phone_number'];
-
+        $this->name = isset($contact['name']) ? $contact['name'] : '';
         return $this;
     }
 }
