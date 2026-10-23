@@ -3,6 +3,7 @@
 namespace Viber;
 
 use Closure;
+use Viber\Client;
 use Viber\Bot\Manager;
 use Viber\Api\Event;
 use Viber\Api\Signature;
@@ -64,22 +65,21 @@ class Bot
     /**
      * Register event handler callback
      *
-     * @param \Closure $checker checker function
-     * @param \Closure $handler handler function
+     * @param \Closure  $checker checker function
+     * @param \Closure  $handler handler function
      *
      * @return \Viber\Bot
      */
     public function on(\Closure $checker, \Closure $handler)
     {
         $this->managers[] = new Manager($checker, $handler);
-
         return $this;
     }
 
     /**
      * Register text message handler by PCRE
      *
-     * @param  string $regexp valid regular expression
+     * @param  string  $regexp  valid regular expression
      * @param  Closure $handler event handler
      * @return \Viber\Bot
      */
@@ -92,7 +92,6 @@ class Bot
                 && preg_match($regexp, $event->getMessage()->getText())
             );
         }, $handler);
-
         return $this;
     }
 
@@ -104,29 +103,55 @@ class Bot
      */
     public function onSubscribe(\Closure $handler)
     {
-        $this->managers[] = new Manager(function (Event $event) {
+		$this->managers[] = new Manager(function (Event $event) {
             return ($event instanceof \Viber\Api\Event\Subscribed);
         }, $handler);
-
         return $this;
     }
-
-    /**
-     * Register conversation event handler
+	
+	/**
+     * Register unsubscrive event handler
      *
-     * @param Closure $handler valid function
+     * @param  Closure $handler valid function
      * @return \Viber\Bot
      */
-    public function onConversation(\Closure $handler)
+    public function onUnsubscribe(\Closure $handler)
     {
-        $this->managers[] = new Manager(function (Event $event) {
-            return ($event instanceof \Viber\Api\Event\Conversation);
+		$this->managers[] = new Manager(function (Event $event) {
+            return ($event instanceof \Viber\Api\Event\Unsubscribed);
         }, $handler);
-
         return $this;
     }
-
-    /**
+	
+	/**
+     * Register seen event handler
+     *
+     * @param  Closure $handler valid function
+     * @return \Viber\Bot
+     */
+    public function onSeen(\Closure $handler)
+    {
+        $this->managers[] = new Manager(function (Event $event) {
+            return ($event instanceof \Viber\Api\Event\Seen);
+        }, $handler);
+        return $this;
+    }
+	
+	/**
+     * Register delivered event handler
+     *
+     * @param  Closure $handler valid function
+     * @return \Viber\Bot
+     */
+    public function onDelivered(\Closure $handler)
+    {
+        $this->managers[] = new Manager(function (Event $event) {
+            return ($event instanceof \Viber\Api\Event\Delivered);
+        }, $handler);
+        return $this;
+    }
+	
+	/**
      * Register picture message handler
      *
      * @param Closure $handler event handler
@@ -141,6 +166,74 @@ class Bot
             );
         }, $handler);
 
+        return $this;
+    }
+
+	/**
+     * Register file message handler
+     *
+     * @param Closure $handler event handler
+     * @return \Viber\Bot
+     */
+    public function onFile(\Closure $handler)
+    {
+        $this->managers[] = new Manager(function (Event $event) {
+            return (
+                $event instanceof \Viber\Api\Event\Message
+                && $event->getMessage() instanceof \Viber\Api\Message\File
+            );
+        }, $handler);
+
+        return $this;
+    }
+	
+	/**
+     * Register video message handler
+     *
+     * @param Closure $handler event handler
+     * @return \Viber\Bot
+     */
+    public function onVideo(\Closure $handler)
+    {
+        $this->managers[] = new Manager(function (Event $event) {
+            return (
+                $event instanceof \Viber\Api\Event\Message
+                && $event->getMessage() instanceof \Viber\Api\Message\Video
+            );
+        }, $handler);
+
+        return $this;
+    }
+    
+    /**
+     * Register location message handler
+     *
+     * @param Closure $handler event handler
+     * @return \Viber\Bot
+     */
+    public function onLocation(\Closure $handler)
+    {
+		$this->managers[] = new Manager(function (Event $event) {
+            return (
+                $event instanceof \Viber\Api\Event\Message
+                && $event->getMessage() instanceof \Viber\Api\Message\Location
+            );
+        }, $handler);
+
+        return $this;
+    }
+	
+    /**
+     * Register conversation event handler
+     *
+     * @param  Closure $handler valid function
+     * @return \Viber\Bot
+     */
+    public function onConversation(\Closure $handler)
+    {
+        $this->managers[] = new Manager(function (Event $event) {
+            return ($event instanceof \Viber\Api\Event\Conversation);
+        }, $handler);
         return $this;
     }
 
@@ -161,7 +254,6 @@ class Bot
         if (empty($signature)) {
             throw new \RuntimeException('Signature header not found', 1);
         }
-
         return $signature;
     }
 
@@ -196,7 +288,7 @@ class Bot
      */
     public function run($event = null)
     {
-        if (null === $event) {
+		if (is_null($event)) {
             // check body
             $eventBody = $this->getInputBody();
 
@@ -219,7 +311,7 @@ class Bot
         }
         // main bot loop
         foreach ($this->managers as $manager) {
-            if ($manager->isMatch($event)) {
+			if ($manager->isMatch($event)) {
                 $returnValue = $manager->runHandler($event);
                 if ($returnValue && $returnValue instanceof Entity) { // reply with entity
                     $this->outputEntity($returnValue);
@@ -227,67 +319,6 @@ class Bot
                 break;
             }
         }
-
-        return $this;
-    }
-    /**
-     * Register unsubscrive event handler
-     *
-     * @param  Closure $handler valid function
-     * @return \Viber\Bot
-     */
-    public function onUnsubscribe(\Closure $handler)
-    {
-        $this->managers[] = new Manager(function (Event $event) {
-            return ($event instanceof \Viber\Api\Event\Unsubscribed);
-        }, $handler);
-        
-        return $this;
-    }
-    /** 
-     * Register seen event handler
-     *
-     * @param  Closure $handler valid function
-     * @return \Viber\Bot
-     */
-    public function onSeen(\Closure $handler)
-    {
-        $this->managers[] = new Manager(function (Event $event) {
-            return ($event instanceof \Viber\Api\Event\Seen);
-        }, $handler);
-        
-        return $this;
-    }
-	
-	/**
-     * Register delivered event handler
-     *
-     * @param  Closure $handler valid function
-     * @return \Viber\Bot
-     */
-    public function onDelivered(\Closure $handler)
-    {
-        $this->managers[] = new Manager(function (Event $event) {
-            return ($event instanceof \Viber\Api\Event\Delivered);
-        }, $handler);
-        
-        return $this;
-    }
-    /**
-     * Register contact message handler
-     *
-     * @param Closure $handler event handler
-     * @return \Viber\Bot
-     */
-    public function onContact(\Closure $handler)
-    {
-		$this->managers[] = new Manager(function (Event $event) {
-            return (
-                $event instanceof \Viber\Api\Event\Message
-                && $event->getMessage() instanceof \Viber\Api\Message\Contact
-            );
-        }, $handler);
-
         return $this;
     }
 }
