@@ -150,6 +150,39 @@ class Bot
         }, $handler);
         return $this;
     }
+    
+    /**
+     * Register contact message handler
+     *
+     * @param Closure $handler event handler
+     * @return \Viber\Bot
+     */
+    public function onContact(\Closure $handler)
+    {
+		$this->managers[] = new Manager(function (Event $event) {
+            return (
+                $event instanceof \Viber\Api\Event\Message
+                && $event->getMessage() instanceof \Viber\Api\Message\Contact
+            );
+        }, $handler);
+
+        return $this;
+    }
+    
+    /** 
+     * Register seen event handler
+     *
+     * @param  Closure $handler valid function
+     * @return \Viber\Bot
+     */
+    public function onPayment(\Closure $handler)
+    {
+        $this->managers[] = new Manager(function (Event $event) {
+            return ($event instanceof \Viber\Api\Event\Payment);
+        }, $handler);
+        
+        return $this;
+    }
 	
 	/**
      * Register picture message handler
